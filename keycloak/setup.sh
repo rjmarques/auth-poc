@@ -8,8 +8,10 @@ cd /opt/keycloak/bin
 REALM="longshot"
 CLIENT_SECRET_1="my-app1-secret"
 CLIENT_SECRET_2="my-app2-secret"
+CLIENT_SECRET_3="my-app3-secret"
 EMPLOYEES_GROUP="employees"
 ASSOCIATES_GROUP="associates"
+INTEGRATORS_GROUP="integrators"
 
 # authenticate as admin
 ./kcadm.sh config credentials --server http://localhost:8080 --realm master --user admin --password admin
@@ -22,7 +24,8 @@ echo "adding longshot realm"
 echo "adding realm roles"
 ./kcadm.sh create roles -r $REALM -s name=booking -s 'description=User that can make bookings'
 ./kcadm.sh create roles -r $REALM -s name=audit -s 'description=User that can access auditing'
-./kcadm.sh create roles -r $REALM -s name=accounts -s 'description=User that can access accounts '
+./kcadm.sh create roles -r $REALM -s name=accounts -s 'description=User that can access accounts'
+./kcadm.sh create roles -r $REALM -s name=api -s 'description=User that can access the API'
 
 # add new groups
 echo "adding new groups"
@@ -35,6 +38,9 @@ EMPLOYEES_ID=$(./kcadm.sh create groups -r $REALM -s name=$EMPLOYEES_GROUP -i)
 ASSOCIATES_ID=$(./kcadm.sh create groups -r $REALM -s name=$ASSOCIATES_GROUP -i)
 ./kcadm.sh add-roles --gid $ASSOCIATES_ID --rolename audit -r $REALM
 
+INTEGRATORS_ID=$(./kcadm.sh create groups -r $REALM -s name=$INTEGRATORS_GROUP -i)
+./kcadm.sh add-roles --gid $INTEGRATORS_ID --rolename api -r $REALM
+
 # add new users and add them to the appropriate group
 echo "adding user ric (group $EMPLOYEES_GROUP)"
 RIC_ID=$(./kcadm.sh create users -s username=ric -s enabled=true -r $REALM -i)
@@ -46,9 +52,16 @@ echo "adding user gary (group $ASSOCIATES_GROUP)"
 GARY_ID=$(./kcadm.sh create users -s username=gary -s enabled=true -r $REALM -i)
 ./kcadm.sh set-password -r $REALM --username gary --new-password gary
 ./kcadm.sh update users/$GARY_ID/groups/$ASSOCIATES_ID -r $REALM -s realm=$REALM -s userId=$GARY_ID -s groupId=$ASSOCIATES_ID -n
-./kcadm.sh remove-roles --uid $GARY_ID --rolename default-roles-longshot -r $REALM 
+./kcadm.sh remove-roles --uid $GARY_ID --rolename default-roles-longshot -r $REALM
+
+echo "adding user jimmy (group $INTEGRATORS_GROUP)"
+JIMMY_ID=$(./kcadm.sh create users -s username=jimmy -s enabled=true -r $REALM -i)
+./kcadm.sh set-password -r $REALM --username jimmy --new-password jimmy
+./kcadm.sh update users/$JIMMY_ID/groups/$INTEGRATORS_ID -r $REALM -s realm=$REALM -s userId=$JIMMY_ID -s groupId=$INTEGRATORS_ID -n
+./kcadm.sh remove-roles --uid $JIMMY_ID --rolename default-roles-longshot -r $REALM
 
 # add a new client (app)
 echo "adding client apps"
 ./kcadm.sh create clients -r $REALM -s clientId=myapp_1 -s enabled=true -s baseUrl=http://webapp1:8000/ -s clientAuthenticatorType=client-secret -s secret=$CLIENT_SECRET_1 -s standardFlowEnabled=false -s directAccessGrantsEnabled=true -o
 ./kcadm.sh create clients -r $REALM -s clientId=myapp_2 -s enabled=true -s baseUrl=http://webapp2:9000/ -s clientAuthenticatorType=client-secret -s secret=$CLIENT_SECRET_2 -s standardFlowEnabled=false -s directAccessGrantsEnabled=true -o
+./kcadm.sh create clients -r $REALM -s clientId=myapp_3 -s enabled=true -s baseUrl=http://api:9999/ -s clientAuthenticatorType=client-secret -s secret=$CLIENT_SECRET_3 -s standardFlowEnabled=false -s directAccessGrantsEnabled=true -o

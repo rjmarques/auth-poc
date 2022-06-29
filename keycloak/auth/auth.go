@@ -1,12 +1,17 @@
 package auth
 
-import "github.com/Nerzal/gocloak/v11"
+import (
+	"fmt"
+
+	"github.com/Nerzal/gocloak/v11"
+)
 
 type AuthAPI struct {
 	gocloak      gocloak.GoCloak // keycloak client
 	clientId     string          // clientId specified in Keycloak
 	clientSecret string          // client secret specified in Keycloak
 	realm        string          // realm specified in Keycloak
+	certsURL     string          //openid-connect
 }
 
 func NewAuth(keycloakURL, clientID, clientSecret, realm string) *AuthAPI {
@@ -16,5 +21,6 @@ func NewAuth(keycloakURL, clientID, clientSecret, realm string) *AuthAPI {
 		clientId:     clientID,
 		clientSecret: clientSecret,
 		realm:        realm,
+		certsURL:     fmt.Sprintf("%s/realms/%s/protocol/openid-connect/certs", keycloakURL, realm),
 	}
 }

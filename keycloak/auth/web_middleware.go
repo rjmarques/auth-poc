@@ -5,26 +5,24 @@ import (
 	"fmt"
 	"net/http"
 	"time"
-
-	"github.com/golang-jwt/jwt/v4"
 )
 
 const CookieKey = "token"
 
-func NewMiddleware(api *AuthAPI) (authingWrapper func(handler http.Handler) http.Handler, loginHandler http.HandlerFunc) {
-	m := &middleware{api}
+func NewWebMiddleware(api *AuthAPI) (authingWrapper func(handler http.Handler) http.Handler, loginHandler http.HandlerFunc) {
+	m := &webMiddleware{api}
 
-	authingWrapper = m.authingHandler
-	loginHandler = m.login
+	authingWrapper = m.activeAuthingHandler
+	loginHandler = m.formLogin
 
 	return
 }
 
-type middleware struct {
+type webMiddleware struct {
 	api *AuthAPI
 }
 
-func (m *middleware) login(w http.ResponseWriter, r *http.Request) {
+func (m *webMiddleware) formLogin(w http.ResponseWriter, r *http.Request) {
 	err := r.ParseForm()
 	if err != nil {
 		http.Error(w, "error parsing form", http.StatusBadRequest)
@@ -57,14 +55,7 @@ func (m *middleware) login(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
-type ContextKey string
-
-const (
-	UserKey  ContextKey = "user"
-	RolesKey ContextKey = "roles"
-)
-
-func (m *middleware) authingHandler(h http.Handler) http.Handler {
+func (m *webMiddleware) activeAuthingHandler(h http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		var token string
 
@@ -104,18 +95,4 @@ func (m *middleware) authingHandler(h http.Handler) http.Handler {
 		r = r.WithContext(setJWTClaims(r.Context(), *claims))
 		h.ServeHTTP(w, r)
 	})
-}
-
-func setJWTClaims(ctx context.Context, claims jwt.MapClaims) context.Context {
-	ctx = context.WithValue(ctx, UserKey, claims["preferred_username"])
-
-	// there's probably an easier way with via some JSON parsing, but can't be bothered...
-	access, _ := claims["realm_access"].(map[string]interface{})
-	rawRoles, _ := access["roles"].([]interface{})
-	var roles []string
-	for _, r := range rawRoles {
-		roles = append(roles, fmt.Sprintf("%v", r))
-	}
-
-	return context.WithValue(ctx, RolesKey, roles)
 }

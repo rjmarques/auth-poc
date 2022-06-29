@@ -11,7 +11,8 @@ services:
   webapp1:
     container_name: webapp1
     build: 
-      context: ./webapp
+      context: .
+      dockerfile: docker/Dockerfile-webapp
     ports:
       - "8000:8000"
     environment:
@@ -25,7 +26,8 @@ services:
   webapp2:
     container_name: webapp2
     build: 
-      context: ./webapp
+      context: .
+      dockerfile: docker/Dockerfile-webapp
     ports:
       - "9000:9000"
     environment:
@@ -34,5 +36,20 @@ services:
       - APP_SECRET=my-app2-secret
       - REALM=longshot
       - PORT=9000
+    depends_on:
+      - keycloak
+  api:
+    container_name: api
+    build: 
+      context: .
+      dockerfile: docker/Dockerfile-api
+    ports:
+      - "9999:9999"
+    environment:
+      - KEYCLOAK_URL=http://keycloak:8080
+      - APP_NAME=myapp_3
+      - APP_SECRET=my-app3-secret
+      - REALM=longshot
+      - PORT=9999
     depends_on:
       - keycloak
