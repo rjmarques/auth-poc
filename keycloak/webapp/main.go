@@ -5,6 +5,7 @@ import (
 	"os"
 
 	"github.com/rjmarques/auth-poc/keycloak/auth"
+	"github.com/rjmarques/auth-poc/keycloak/webapp/server"
 )
 
 func main() {
@@ -16,7 +17,7 @@ func main() {
 
 	authProvider := auth.NewAuth(keycloakURL, appName, appSecret, realm)
 
-	s := NewServer(port, authProvider)
+	s := server.NewServer(port, authProvider)
 	fmt.Printf("starting server on :%s\n", port)
 	panic(s.Listen())
 }

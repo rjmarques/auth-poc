@@ -11,8 +11,8 @@ const loadData = async () => {
 }
 
 const setForm = (visible) => {
-    const state = visible ? "block" : "none"
-    document.getElementById("form-placeholder").style.display = state
+    document.getElementById("form-placeholder").style.display = visible ? "block" : "none"
+    document.getElementById("logout-button").style.display = visible ? "none" : "block" 
 }
 
 const setData = (data) => {
@@ -50,6 +50,12 @@ const login = async (e) => {
     location.reload()
 }
 
+const logout = async (e) => {
+    e.preventDefault();
+    await issueLogout()
+    location.reload()
+}
+
 const postLogin = async(username, password) => {
     const formData = new URLSearchParams()
     formData.append("username", username)
@@ -67,5 +73,19 @@ const postLogin = async(username, password) => {
     if (!response.ok) {      
       alert("login failed!")
       return
+    }
+}
+
+const issueLogout = async() => {
+    const response = await fetch("/logout", {
+      headers: {
+        credentials: "include",
+      },
+      method: "GET",
+    });
+    
+    if (!response.ok) {      
+       alert("logout failed!")
+       return
     }
 }

@@ -14,7 +14,9 @@
     <link rel='stylesheet' type='text/css' media='screen' href='main.css'>
   </head>
   <body onload="loadData()">    
-    <div id="data-placeholder">
+    <div id="data-placeholder"></div>
+    <div id="logout-button">
+      <button class="btn btn-primary" onclick="logout(event)">Logout</button>
     </div>
     <div id="form-placeholder" style="display: none;">
       <form onsubmit="login(event)">

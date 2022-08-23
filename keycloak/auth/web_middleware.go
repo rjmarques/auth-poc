@@ -5,15 +5,19 @@ import (
 	"fmt"
 	"net/http"
 	"time"
+
+	"github.com/golang-jwt/jwt/v4"
 )
 
-const CookieKey = "token"
+const CookieAccessToken = "accesstkn"
+const CookieRefreshToken = "refreshtkn"
 
-func NewWebMiddleware(api *AuthAPI) (authingWrapper func(handler http.Handler) http.Handler, loginHandler http.HandlerFunc) {
+func NewWebMiddleware(api *AuthAPI) (authingWrapper func(handler http.Handler) http.Handler, loginHandler http.HandlerFunc, logoutHandler http.HandlerFunc) {
 	m := &webMiddleware{api}
 
 	authingWrapper = m.activeAuthingHandler
 	loginHandler = m.formLogin
+	logoutHandler = m.logout
 
 	return
 }
@@ -43,15 +47,61 @@ func (m *webMiddleware) formLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	cookie := &http.Cookie{
-		Name:     CookieKey,
+	// set both cookies
+	http.SetCookie(w, &http.Cookie{
+		Name:     CookieAccessToken,
 		HttpOnly: true,
 		Secure:   true,
 		Value:    jwt.AccessToken,
 		Expires:  time.Now().Add(time.Duration(jwt.ExpiresIn) * time.Second),
+	})
+
+	http.SetCookie(w, &http.Cookie{
+		Name:     CookieRefreshToken,
+		HttpOnly: true,
+		Secure:   true,
+		Value:    jwt.RefreshToken,
+		Expires:  time.Now().Add(time.Duration(jwt.RefreshExpiresIn) * time.Second),
+	})
+
+	w.WriteHeader(http.StatusOK)
+}
+
+func (m *webMiddleware) logout(w http.ResponseWriter, r *http.Request) {
+	var token string
+
+	cs := r.Cookies()
+	for _, c := range cs {
+		if c.Name == CookieRefreshToken {
+			token = c.Value
+			break
+		}
 	}
 
-	http.SetCookie(w, cookie)
+	if token != "" {
+		// revoke session in keycloak
+		err := m.api.gocloak.Logout(context.Background(), m.api.clientId, m.api.clientSecret, m.api.realm, token)
+		if err != nil {
+			fmt.Printf("unable to log user out: %s\n", err.Error())
+		}
+	}
+
+	// clear cookies
+	http.SetCookie(w, &http.Cookie{
+		Name:     CookieAccessToken,
+		HttpOnly: true,
+		Secure:   true,
+		Value:    "",
+		Expires:  time.Unix(0, 0),
+	})
+	http.SetCookie(w, &http.Cookie{
+		Name:     CookieRefreshToken,
+		HttpOnly: true,
+		Secure:   true,
+		Value:    "",
+		Expires:  time.Unix(0, 0),
+	})
+
 	w.WriteHeader(http.StatusOK)
 }
 
@@ -61,7 +111,7 @@ func (m *webMiddleware) activeAuthingHandler(h http.Handler) http.Handler {
 
 		cs := r.Cookies()
 		for _, c := range cs {
-			if c.Name == CookieKey {
+			if c.Name == CookieAccessToken {
 				token = c.Value
 				break
 			}
@@ -86,7 +136,7 @@ func (m *webMiddleware) activeAuthingHandler(h http.Handler) http.Handler {
 		}
 
 		// decode the toke to get user related data
-		_, claims, err := m.api.gocloak.DecodeAccessToken(context.Background(), token, m.api.realm)
+		_, claims, err := m.decodeToken(token)
 		if err != nil {
 			http.Error(w, fmt.Sprintf("Invalid or malformed token: %s", err.Error()), http.StatusUnauthorized)
 			return
@@ -95,4 +145,8 @@ func (m *webMiddleware) activeAuthingHandler(h http.Handler) http.Handler {
 		r = r.WithContext(setJWTClaims(r.Context(), *claims))
 		h.ServeHTTP(w, r)
 	})
+}
+
+func (m *webMiddleware) decodeToken(token string) (*jwt.Token, *jwt.MapClaims, error) {
+	return m.api.gocloak.DecodeAccessToken(context.Background(), token, m.api.realm)
 }

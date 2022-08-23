@@ -1,4 +1,4 @@
-package main
+package server
 
 import (
 	"encoding/json"
@@ -14,7 +14,7 @@ type HttpServer struct {
 }
 
 func NewServer(port string, authProvider *auth.AuthAPI) *HttpServer {
-	secureWrapper, loginHandler := auth.NewWebMiddleware(authProvider)
+	secureWrapper, loginHandler, logoutHandler := auth.NewWebMiddleware(authProvider)
 
 	// all these routes are secure and will be checked for a validated session
 	secureMux := mux.NewRouter()
@@ -28,6 +28,7 @@ func NewServer(port string, authProvider *auth.AuthAPI) *HttpServer {
 	r := mux.NewRouter()
 	r.PathPrefix("/api").Handler(secureMux)
 	r.HandleFunc("/login", loginHandler).Methods("POST")
+	r.HandleFunc("/logout", logoutHandler).Methods("GET")
 	r.PathPrefix("/").Handler(nocache(http.FileServer(http.Dir("static/"))))
 
 	// create a server object
