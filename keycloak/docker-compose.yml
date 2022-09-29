@@ -28,7 +28,7 @@ services:
       - KC_HTTP_ENABLED=true 
       - KC_HOSTNAME_STRICT_HTTPS=false
     depends_on:
-      - postgres
+      - db
     command: ["start", "--db-username", "keycloak", "--db-password", "mysecretpassword"]
   webapp1:
     container_name: webapp1
